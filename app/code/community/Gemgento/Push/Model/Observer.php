@@ -48,6 +48,7 @@ class Gemgento_Push_Model_Observer {
         }
 
         $product = $observer->getProduct();
+        $stores = $this->gemgento_product_stores($product);
 
         // Basic product data
         $data = array(
@@ -57,7 +58,7 @@ class Gemgento_Push_Model_Observer {
             'set' => $product->getAttributeSetId(),
             'type' => $product->getTypeId(),
             'websites' => $product->getWebsiteIds(),
-            'stores' => $product->getStoreIds(),
+            'stores' => $stores,
             'additional_attributes' => array(),
             'simple_product_ids' => array(),
             'configurable_product_ids' => Mage::getResourceSingleton('catalog/product_type_configurable')->getParentIdsByChild($product->getId())
@@ -73,6 +74,7 @@ class Gemgento_Push_Model_Observer {
 
         // load attribute values for each store
         foreach ($data['stores'] as $storeId) {
+            Mage::log('Collect data for store: '.$storeId);
             $product = Mage::getModel('catalog/product')->setStoreId($storeId)->load($data['product_id']);
             $data['additional_attributes'][$storeId] = array();
 
@@ -107,7 +109,9 @@ class Gemgento_Push_Model_Observer {
             $id = 0;
         }
 
-        self::push('PUT', 'products', $id, $data);
+        if (sizeof($stores) > 0) {
+            self::push('PUT', 'products', $id, $data);
+        }
     }
 
     /**
@@ -117,19 +121,24 @@ class Gemgento_Push_Model_Observer {
      */
     public function product_delete($observer) {
         $product = $observer->getProduct();
+        $stores = $this->gemgento_product_stores($product);
 
-        $data = array(
-            'product_id' => $product->getId(),
-            'gemgento_id' => $product->getGemgentoId()
-        );
+        if (sizeof($stores) > 0) {
+            $data = array(
+                'product_id' => $product->getId(),
+                'gemgento_id' => $product->getGemgentoId()
+            );
 
-        $id = $data['gemgento_id'];
+            $id = $data['gemgento_id'];
 
-        if ($id == NULL || $id == '') {
-            $id = 0;
+            if ($id == NULL || $id == '') {
+                $id = 0;
+            }
+
+            self::push('DELETE', 'products', $id, $data);
+        } else {
+           Mage::log('PRODUCT IS NOT ACTIVATED FOR GEMGENTO: Product delete not pushed.'); 
         }
-
-        self::push('DELETE', 'products', $id, $data);
     }
 
     /**
@@ -140,36 +149,43 @@ class Gemgento_Push_Model_Observer {
     public function stock_save($observer) {
         $product_id = $observer->getEvent()->getItem()->getProductId();
         $product = Mage::getModel('catalog/product')->load($product_id);
-        $data = array(
-            'product_id' => $product_id,
-            'inventories' => array()
-        );
+        $stores = $this->gemgento_product_stores($product);
 
-        $stock = array(); // stock data for all websites
-        $stockCollection = Mage::getResourceModel('cataloginventory/stock_item_collection')->addProductsFilter(array($product))->load();
-        $maxWebsite_id = 0;
+        if (sizeof($stores) > 0) {
+            $data = array(
+                'product_id' => $product_id,
+                'inventories' => array()
+            );
 
-        foreach ($stockCollection as $stockItem) {
-            $tmpStock = $stockItem->getData();
+            $stock = array(); // stock data for all websites
+            $stockCollection = Mage::getResourceModel('cataloginventory/stock_item_collection')->addProductsFilter(array($product))->load();
+            $maxWebsite_id = 0;
 
-            if ($maxWebsite_id < $tmpStock['website_id']) {
-                $maxWebsite_id = $tmpStock['website_id'];
+            foreach ($stockCollection as $stockItem) {
+                $tmpStock = $stockItem->getData();
+
+                if ($maxWebsite_id < $tmpStock['website_id']) {
+                    $maxWebsite_id = $tmpStock['website_id'];
+                }
+                if (in_array($product->getTypeId(), $this->_complexProductTypes)) {
+                    $this->_filterComplexProductValues($tmpStock);
+                }
+                $stock[$tmpStock['website_id']] = $tmpStock;
             }
-            if (in_array($product->getTypeId(), $this->_complexProductTypes)) {
-                $this->_filterComplexProductValues($tmpStock);
+
+            foreach ($stock as $key => $value) {
+                if (isset($values['website_id']) && ($value['website_id'] == $maxWebsite_id || empty($value['website_id']))) {
+                    unset($stock[$key]);
+                }
             }
-            $stock[$tmpStock['website_id']] = $tmpStock;
+
+            $data['inventories'] = $stock;
+
+            self::push('PUT', 'inventory', $data['product_id'], $data);
+
+        } else {
+            Mage::log('PRODUCT IS NOT ACTIVATED FOR GEMGENTO: Inventories not pushed.');
         }
-
-        foreach ($stock as $key => $value) {
-            if (isset($values['website_id']) && ($value['website_id'] == $maxWebsite_id || empty($value['website_id']))) {
-                unset($stock[$key]);
-            }
-        }
-
-        $data['inventories'] = $stock;
-
-        self::push('PUT', 'inventory', $data['product_id'], $data);
     }
 
     /**
@@ -478,43 +494,51 @@ class Gemgento_Push_Model_Observer {
      * @param \Varien_Event_Observer $observer
      */
     public function order_save($observer) {
+        $stores = $this->gemgento_stores();
+
+
         $order = $observer->getEvent()->getOrder();
         $data = array();
 
         $data = $this->_getAttributes($order, 'order');
 
-        $data['order_id'] = $order->getId();
-        $data['gemgento_id'] = $order->getGemgentoId();
-        $data['store_id'] = $order->getStoreId();
-        $data['shipping_address'] = $this->_getAttributes($order->getShippingAddress(), 'order_address');
-        $data['billing_address'] = $this->_getAttributes($order->getBillingAddress(), 'order_address');
-        $data['items'] = array();
+        if (in_array($data['store_id'], $stores)) {
+            $data['order_id'] = $order->getId();
+            $data['gemgento_id'] = $order->getGemgentoId();
+            $data['store_id'] = $order->getStoreId();
+            $data['shipping_address'] = $this->_getAttributes($order->getShippingAddress(), 'order_address');
+            $data['billing_address'] = $this->_getAttributes($order->getBillingAddress(), 'order_address');
+            $data['items'] = array();
 
-        foreach ($order->getAllItems() as $item) {
-            if ($item->getGiftMessageId() > 0) {
-                $item->setGiftMessage(
-                        Mage::getSingleton('giftmessage/message')->load($item->getGiftMessageId())->getMessage()
-                );
+            foreach ($order->getAllItems() as $item) {
+                if ($item->getGiftMessageId() > 0) {
+                    $item->setGiftMessage(
+                            Mage::getSingleton('giftmessage/message')->load($item->getGiftMessageId())->getMessage()
+                    );
+                }
+
+                $data['items'][] = $this->_getAttributes($item, 'order_item');
             }
 
-            $data['items'][] = $this->_getAttributes($item, 'order_item');
+            // $data['payment'] = $this->_getAttributes($order->getPayment(), 'order_payment');
+
+            $data['status_history'] = array();
+
+            foreach ($order->getAllStatusHistory() as $history) {
+                $data['status_history'][] = $this->_getAttributes($history, 'order_status_history');
+            }
+
+            $id = $data['gemgento_id'];
+
+            if ($id == NULL || $id == '') {
+                $id = 0;
+            }
+
+            self::push('PUT', 'orders', $id, $data);
+        
+        } else {
+            Mage::log('STORE IS NOT ACTIVATED FOR GEMGENTO: Order not pushed.');
         }
-
-//        $data['payment'] = $this->_getAttributes($order->getPayment(), 'order_payment');
-
-        $data['status_history'] = array();
-
-        foreach ($order->getAllStatusHistory() as $history) {
-            $data['status_history'][] = $this->_getAttributes($history, 'order_status_history');
-        }
-
-        $id = $data['gemgento_id'];
-
-        if ($id == NULL || $id == '') {
-            $id = 0;
-        }
-
-        self::push('PUT', 'orders', $id, $data);
     }
 
     /**
@@ -659,6 +683,43 @@ class Gemgento_Push_Model_Observer {
         } else {
             return $user;
         }
+    }
+
+    /**
+     * Get the gemgento store ids from configuration
+     * 
+     * @return string
+     */
+    private function gemgento_stores() {
+        $stores = Mage::getStoreConfig("gemgento_push/settings/gemgento_stores");
+
+        if ($stores === NULL || $stores == '') {
+            return null;
+        } else {
+            return explode(",", $stores);
+        }
+    }
+
+    /**
+     * Get the gemgento store ids for product
+     * 
+     * @return string
+     */
+    private function gemgento_product_stores($product) {
+        // Collect activated stores from gemgento config
+        $activatedStores = $this->gemgento_stores();
+        $productStoreIds = $product->getStoreIds();
+
+        // Collect stores for product
+        $stores = array();
+        foreach($productStoreIds as $storeId){
+           if (in_array($storeId, $activatedStores)) {
+            array_push($stores, $storeId);
+           }
+        }
+        Mage::log('Size Stores: '.sizeof($stores));
+
+        return $stores;
     }
 
     private function _filterComplexProductValues(&$productData) {

@@ -6,13 +6,30 @@
         </Gemgento_Push>
     </modules>
     <global>
+        <helpers>
+            <gemgento_push>
+                <class>Gemgento_Push_Helper</class>
+            </gemgento_push>
+        </helpers>
+
         <models>
             <gemgento_push>
                 <class>Gemgento_Push_Model</class>
             </gemgento_push>
         </models>
+
         <events>
-            
+            <!-- ADDRESSES -->
+            <customer_address_save_after>
+               <observers>
+                    <push>
+                        <type>singleton</type>
+                        <class>Gemgento_Push_Model_Observer</class>
+                        <method>address_save</method>
+                    </push>
+                </observers> 
+            </customer_address_save_after>
+
             <!-- ADDRESSES -->
             <customer_address_save_after>
                <observers>
@@ -97,27 +114,6 @@
                 </observers>
             </catalog_category_tree_move_after>
             
-            <!-- PRICE RULES -->
-            <catalogrule_rule_save_after>
-                <observers>
-                    <push>
-                        <type>singleton</type>
-                        <class>Gemgento_Push_Model_Observer</class>
-                        <method>rule_save</method>
-                    </push>
-                </observers>
-            </catalogrule_rule_save_after>
-            
-            <catalogrule_rule_delete_before>
-                <observers>
-                    <push>
-                        <type>singleton</type>
-                        <class>Gemgento_Push_Model_Observer</class>
-                        <method>rule_delete</method>
-                    </push>
-                </observers>
-            </catalogrule_rule_delete_before>
-            
             <!-- ATTRIBUTE SET -->
             <eav_entity_attribute_set_save_after>
                 <observers>
@@ -200,26 +196,6 @@
                     </push>
                 </observers>
             </customer_delete_before>
-
-            <customer_group_save_after>
-                <observers>
-                    <push>
-                        <type>singleton</type>
-                        <class>Gemgento_Push_Model_Observer</class>
-                        <method>customer_group_save</method>
-                    </push>
-                </observers>
-            </customer_group_save_after>
-
-            <customer_group_delete_before>
-                <observers>
-                    <push>
-                        <type>singleton</type>
-                        <class>Gemgento_Push_Model_Observer</class>
-                        <method>customer_group_delete</method>
-                    </push>
-                </observers>
-            </customer_group_delete_before>
             
             <!-- ORDER -->
             <sales_order_save_after>
@@ -242,17 +218,6 @@
                     </push>
                 </observers>
             </store_save_after>
-
-            <!-- RECURRING PROFILE -->
-            <sales_recurring_profile_save_after>
-                <observers>
-                    <push>
-                        <type>singleton</type>
-                        <class>Gemgento_Push_Model_Observer</class>
-                        <method>recurring_profile_save</method>
-                    </push>
-                </observers>
-            </sales_recurring_profile_save_after>
         </events>
     </global>
     
@@ -262,6 +227,7 @@
                 <gemgento_url>http://localhost:3000/</gemgento_url>
                 <gemgento_user></gemgento_user>
                 <gemgento_password></gemgento_password>
+                <gemgento_stores>0</gemgento_stores>
             </config>
         </gemgento_push>
     </default>
