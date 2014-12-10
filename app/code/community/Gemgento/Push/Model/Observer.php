@@ -692,11 +692,22 @@ class Gemgento_Push_Model_Observer {
      */
     private function gemgento_stores() {
         $stores = Mage::getStoreConfig("gemgento_push/settings/gemgento_stores");
+        $stores = explode(",", $stores);
 
-        if ($stores === NULL || $stores == '') {
-            return null;
+        $allStores = Mage::app()->getStores();
+        $allStoresIds = array();
+
+        foreach ($allStores as $_eachStoreId => $val) {
+            $storeId = Mage::app()->getStore($_eachStoreId)->getId(); // Store Id
+            array_push($allStoresIds, $storeId);
+        }
+
+        if (in_array("0", $stores)) {
+            Mage::log('Gemgento all stores are used: '.sizeof($allStoresIds));
+            return $allStoresIds;
         } else {
-            return explode(",", $stores);
+            Mage::log('Gemgento not all stores are used: '.sizeof($stores));
+            return $stores;
         }
     }
 
