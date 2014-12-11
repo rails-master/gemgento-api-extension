@@ -55,7 +55,7 @@
                             <source_model>gemgento_push/store</source_model>
                             <sort_order>4</sort_order>
                             <show_in_default>1</show_in_default>
-                        </gemgento_stores>
+                        </gemgento_stores> 
                     </fields>  
                 </settings>  
             </groups>  
