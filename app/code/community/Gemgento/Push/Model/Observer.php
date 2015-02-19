@@ -22,8 +22,13 @@ class Gemgento_Push_Model_Observer {
             return; # if event was not triggered by admin, stop here
         }
 
-        $data = $observer->getEvent()->getCustomerAddress()->debug();
-        self::push('PUT', 'addresses', $data['entity_id'], $data);
+        $customer = $observer->getEvent()->getCustomerAddress()->getCustomer();
+        $websiteId = $customer->getData('website_id');
+
+        if( $this->gemgento_website_activated($websiteId) ) {
+            $data = $observer->getEvent()->getCustomerAddress()->debug();
+            self::push('PUT', 'addresses', $data['entity_id'], $data);
+        }  
     }
 
     /**
@@ -32,8 +37,13 @@ class Gemgento_Push_Model_Observer {
      * @param \Varien_Event_Observer $observer
      */
     public function address_delete($observer) {
-        $data = $observer->getEvent()->getCustomerAddress()->debug();
-        self::push('DELETE', 'addresses', $data['entity_id'], $data);
+        $customer = $observer->getEvent()->getCustomerAddress()->getCustomer();
+        $websiteId = $customer->getData('website_id');
+
+        if( $this->gemgento_website_activated($websiteId) ) {
+            $data = $observer->getEvent()->getCustomerAddress()->debug();
+            self::push('DELETE', 'addresses', $data['entity_id'], $data);
+        }
     }
 
     /**
@@ -446,11 +456,19 @@ class Gemgento_Push_Model_Observer {
         $customer = $observer->getEvent()->getCustomer();
         $data = array();
 
-        foreach ($customer->getAttributes() as $attribute) {
-            $data[$attribute->getAttributeCode()] = $customer->getData($attribute->getAttributeCode());
-        }
+        $websiteId = $customer->getData('website_id');
 
-        self::push('PUT', 'users', $data['entity_id'], $data);
+        if( $this->gemgento_website_activated($websiteId) ) {
+            Mage::log('Cuustomer will be pushed.');
+            foreach ($customer->getAttributes() as $attribute) {
+                $data[$attribute->getAttributeCode()] = $customer->getData($attribute->getAttributeCode());
+            }
+
+            self::push('PUT', 'users', $data['entity_id'], $data);
+
+        } else {
+            Mage::log('Cuustomer will not pushed.');
+        }
     }
 
     /**
@@ -461,7 +479,11 @@ class Gemgento_Push_Model_Observer {
     public function customer_delete($observer) {
         $customer = $observer->getEvent()->getCustomer();
 
-        self::push('DELETE', 'users', $customer->getId(), array());
+        $websiteId = $customer->getData('website_id');
+
+        if( $this->gemgento_website_activated($websiteId) ) {
+            self::push('DELETE', 'users', $customer->getId(), array());
+        }
     }
 
     /**
@@ -709,6 +731,45 @@ class Gemgento_Push_Model_Observer {
         } else {
             Mage::log('Gemgento not all stores are used: '.sizeof($stores));
             return $stores;
+        }
+    }
+
+    /**
+     * Get the gemgento website ids for activated stores
+     * 
+     * @return string
+     */
+    private function gemgento_websites() {
+        // Collect activated stores from gemgento config
+        $activatedStores = $this->gemgento_stores();
+        $websitesIds = array();
+
+        // Collect websites for stores
+        $websitesIds = array();
+        foreach($activatedStores as $storeId){
+            $store = Mage::app()->getStore($storeId);
+            $websiteId = $store->getWebsiteId();
+
+            if ( !in_array($websiteId, $websitesIds) ) {
+                array_push($websitesIds , $websiteId);
+            }
+        }
+
+        return $websitesIds;
+    }
+
+    /**
+     * Check the gemgento website is activated
+     * 
+     * @return string
+     */
+    private function gemgento_website_activated($websiteId) {
+        $websitesIds = $this->gemgento_websites();
+
+        if ( in_array($websiteId, $websitesIds) ) {
+            return true;
+        } else {
+            return false;
         }
     }
 
