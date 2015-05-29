@@ -2,20 +2,26 @@
 <config>
     <modules>
         <Gemgento_Push>
-            <version>0.0.1</version>
+            <version>0.0.3</version>
         </Gemgento_Push>
     </modules>
     <global>
+        <models>
+            <gemgento_push>
+                <class>Gemgento_Push_Model</class>
+            </gemgento_push>
+
+            <core>
+                <rewrite>
+                    <email_template>Gemgento_Push_Model_Email_Template</email_template>
+                </rewrite>
+            </core>
+        </models>
         <helpers>
             <gemgento_push>
                 <class>Gemgento_Push_Helper</class>
             </gemgento_push>
         </helpers>
-        <models>
-            <gemgento_push>
-                <class>Gemgento_Push_Model</class>
-            </gemgento_push>
-        </models>
         <events>
             
             <!-- ADDRESSES -->
@@ -267,7 +273,6 @@
                 <gemgento_url>http://localhost:3000/</gemgento_url>
                 <gemgento_user></gemgento_user>
                 <gemgento_password></gemgento_password>
-                <gemgento_stores>0</gemgento_stores>
             </config>
         </gemgento_push>
     </default>

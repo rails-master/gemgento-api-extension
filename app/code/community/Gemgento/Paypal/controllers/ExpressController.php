@@ -12,6 +12,7 @@ class Gemgento_Paypal_ExpressController extends Mage_Paypal_ExpressController
     {
         Mage::getSingleton('core/session')->renewSession();
         Mage::getSingleton('core/session')->unsSessionHosts();
+        Mage::getSingleton('checkout/session')->getMessages(true);
 
         // Create session from Gemgento data
         if(!empty($_GET['store_id'])) {
@@ -27,7 +28,8 @@ class Gemgento_Paypal_ExpressController extends Mage_Paypal_ExpressController
         }
 
         if(!empty($_GET['quote_id'])) {
-            Mage::getSingleton('checkout/session')->setQuoteId($_GET['quote_id']);
+            $quote = Mage::getModel('sales/quote')->load($_GET['quote_id']);
+            Mage::getSingleton('checkout/session')->replaceQuote($quote);
         }
 
         try {
@@ -72,7 +74,7 @@ class Gemgento_Paypal_ExpressController extends Mage_Paypal_ExpressController
             Mage::logException($e);
         }
 
-        header("Location: {$this->_gemgentoUrl()}checkout/address?alert=" . urlencode('There was a problem processing the PayPal payment'));
+        header("Location: {$this->_callbackUrl()}checkout/address?alert=" . urlencode('There was a problem processing the PayPal payment'));
         exit;
     }
 
@@ -109,7 +111,7 @@ class Gemgento_Paypal_ExpressController extends Mage_Paypal_ExpressController
             Mage::logException($e);
         }
 
-        header("Location: {$this->_gemgentoUrl()}cart");
+        header("Location: {$this->_callbackUrl()}cart");
         exit;
     }
 
@@ -125,7 +127,7 @@ class Gemgento_Paypal_ExpressController extends Mage_Paypal_ExpressController
         try {
             $this->_initCheckout();
             $this->_checkout->returnFromPaypal($this->_initToken());
-            header("Location: {$this->_gemgentoUrl()}checkout/confirm");
+            header("Location: {$this->_callbackUrl()}checkout/confirm");
             exit;
         }
         catch (Mage_Core_Exception $e) {
@@ -136,7 +138,7 @@ class Gemgento_Paypal_ExpressController extends Mage_Paypal_ExpressController
             Mage::logException($e);
         }
 
-        header("Location: {$this->_gemgentoUrl()}cart?alert=" . urlencode('There was a problem processing the PayPal payment.  Your order has been canceled.'));
+        header("Location: {$this->_callbackUrl()}cart?alert=" . urlencode('There was a problem processing the PayPal payment.  Your order has been canceled.'));
         exit;
     }
 
@@ -203,7 +205,7 @@ class Gemgento_Paypal_ExpressController extends Mage_Paypal_ExpressController
             Mage::getSingleton('core/session')->renewSession();
             Mage::getSingleton('core/session')->unsSessionHosts();
 
-            header("Location: {$this->_gemgentoUrl()}checkout/thank_you");
+            header("Location: {$this->_callbackUrl()}checkout/paypal/{$order->getIncrementId()}");
             exit;
         }
         catch (Mage_Core_Exception $e) {
@@ -214,7 +216,7 @@ class Gemgento_Paypal_ExpressController extends Mage_Paypal_ExpressController
             Mage::logException($e);
         }
 
-        header("Location: {$this->_gemgentoUrl()}checkout/confirm?alert=" . urlencode('There was a problem processing the PayPal payment'));
+        header("Location: {$this->_callbackUrl()}checkout/confirm?alert=" . urlencode('There was a problem processing the PayPal payment'));
         exit;
     }
 
@@ -225,12 +227,10 @@ class Gemgento_Paypal_ExpressController extends Mage_Paypal_ExpressController
     private function _initCheckout()
     {
         $quote = $this->_getQuote();
-
         if (!$quote->hasItems() || $quote->getHasError()) {
             $this->getResponse()->setHeader('HTTP/1.1','403 Forbidden');
             Mage::throwException(Mage::helper('paypal')->__('Unable to initialize Express Checkout.'));
         }
-
         $this->_checkout = Mage::getSingleton($this->_checkoutType, array(
             'config' => $this->_config,
             'quote'  => $quote,
@@ -265,8 +265,20 @@ class Gemgento_Paypal_ExpressController extends Mage_Paypal_ExpressController
     private function _getQuote()
     {
         if (!$this->_quote) {
-            $this->_quote = $this->_getCheckoutSession()->getQuote();
+            if ($this->_getCheckoutSession()->getQuoteId()) {
+                $quote = Mage::getModel('sales/quote')->load($this->_getCheckoutSession()->getQuoteId());
+                $this->_getCheckoutSession()->replaceQuote($quote);
+                $this->_quote = $quote;
 
+            } else if ($this->_getCheckoutSession()->quote_id_1) {
+                $quote = Mage::getModel('sales/quote')->load($this->_getCheckoutSession()->quote_id_1);
+                $this->_getCheckoutSession()->replaceQuote($quote);
+                $this->_quote = $quote;
+
+            } else {
+                $this->_quote = $this->_getCheckoutSession()->getQuote();
+
+            }
         }
         return $this->_quote;
     }
@@ -276,8 +288,8 @@ class Gemgento_Paypal_ExpressController extends Mage_Paypal_ExpressController
      *
      * @return string
      */
-    private function _gemgentoUrl() {
-        $url = Mage::getStoreConfig("gemgento_push/settings/gemgento_url");
+    private function _callbackUrl() {
+        $url = Mage::getStoreConfig("gemgento_paypal/settings/callback_url");
 
         if (substr($url, -1) != '/') {
             $url .= '/';
