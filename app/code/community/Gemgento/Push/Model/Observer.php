@@ -69,7 +69,7 @@ class Gemgento_Push_Model_Observer {
 
             self::push('PUT', 'products', $id, $data);
         } else {
-           Mage::log('PRODUCT IS NOT ACTIVATED FOR GEMGENTO: Product save not pushed.'); 
+           // Mage::log('PRODUCT IS NOT ACTIVATED FOR GEMGENTO: Product save not pushed.'); 
         }
     }
 
@@ -96,7 +96,7 @@ class Gemgento_Push_Model_Observer {
 
             self::push('DELETE', 'products', $id, $data);
         } else {
-           Mage::log('PRODUCT IS NOT ACTIVATED FOR GEMGENTO: Product delete not pushed.'); 
+           // Mage::log('PRODUCT IS NOT ACTIVATED FOR GEMGENTO: Product delete not pushed.'); 
         }
     }
 
@@ -143,7 +143,7 @@ class Gemgento_Push_Model_Observer {
 
             self::push('PUT', 'inventory', $data['product_id'], $data);
         } else {
-            Mage::log('PRODUCT IS NOT ACTIVATED FOR GEMGENTO: Inventories not pushed.');
+            // Mage::log('PRODUCT IS NOT ACTIVATED FOR GEMGENTO: Inventories not pushed.');
         }
     }
 
@@ -412,7 +412,7 @@ class Gemgento_Push_Model_Observer {
 
             self::push('PUT', 'users', $data['entity_id'], $data);
         } else {
-            Mage::log('Customer will not pushed.');
+            // Mage::log('Customer will not pushed.');
         }
     }
 
@@ -502,7 +502,7 @@ class Gemgento_Push_Model_Observer {
 
             self::push('PUT', 'orders', $id, $data);
         } else {
-            Mage::log('STORE IS NOT ACTIVATED FOR GEMGENTO: Order not pushed.');
+            // Mage::log('STORE IS NOT ACTIVATED FOR GEMGENTO: Order not pushed.');
         }
     }
 
@@ -669,10 +669,10 @@ class Gemgento_Push_Model_Observer {
         }
 
         if (in_array("0", $stores)) {
-            Mage::log('Gemgento all stores are used: '.sizeof($allStoresIds));
+            // Mage::log('Gemgento all stores are used: '.sizeof($allStoresIds));
             return $allStoresIds;
         } else {
-            Mage::log('Gemgento not all stores are used: '.sizeof($stores));
+            // Mage::log('Gemgento not all stores are used: '.sizeof($stores));
             return $stores;
         }
     }
@@ -733,7 +733,7 @@ class Gemgento_Push_Model_Observer {
             array_push($stores, $storeId);
            }
         }
-        Mage::log('Size Stores: '.sizeof($stores));
+        // Mage::log('Size Stores: '.sizeof($stores));
 
         return $stores;
     }
