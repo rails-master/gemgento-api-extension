@@ -657,7 +657,7 @@ class Gemgento_Push_Model_Observer {
      * @return string
      */
     private function gemgento_stores() {
-        $stores = Mage::getStoreConfig("gemgento_push/settings/gemgento_stores");
+        $stores = Mage::getStoreConfig("gemgento_push/stores/gemgento_stores");
         $stores = explode(",", $stores);
 
         $allStores = Mage::app()->getStores();
